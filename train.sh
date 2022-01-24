@@ -1,0 +1,2 @@
+taskset -c "2" python main.py --config "algorithms/LLAL/configs/cifar10.json" --exp_idx "0" --gpu_idx "0"
+# tensorboard --logdir "/home/ubuntu/source_code/ActiveBed/algorithms/Rand/results/tensorboards/CIFAR_10_0"

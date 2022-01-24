@@ -1,0 +1,6 @@
+__pycache__/
+data/
+*.log
+*.pt
+*.0
+*.pkl

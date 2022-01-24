@@ -1,0 +1,19 @@
+
+  
+{
+    "exp_name": "CIFAR_10",
+    "algorithm": "LLAL",
+    "model": "resnet18",
+    "dataset": "cifar10",
+    "seed_value": 1,
+    "data_path": "data/cifar10/raw_images/",
+    "train_meta": "data/cifar10/metadata/train_split.txt",
+    "test_meta": "data/cifar10/metadata/test_split.txt",
+    "active_cycle": 10,
+    "number_start": 1000,
+    "number_query": 1000,
+    "epochs": 200,
+    "step_eval": 10,
+    "learning_rate": 0.1,
+    "batch_size": 128
+}
