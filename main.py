@@ -8,6 +8,8 @@ import numpy as np
 import torch
 from algorithms.Rand.src.Trainer_Rand import Trainer_Rand
 from algorithms.LLAL.src.Trainer_LLAL import Trainer_LLAL
+from algorithms.RandOD.src.Trainer_RandOD import Trainer_RandOD
+from algorithms.LLALOD.src.Trainer_LLALOD import Trainer_LLALOD
 
 def fix_random_seed(seed_value):
     random.seed(seed_value)
@@ -22,18 +24,15 @@ def fix_random_seed(seed_value):
         torch.backends.cudnn.deterministic = True
 
 
-algorithms_map = {"Rand": Trainer_Rand, "LLAL": Trainer_LLAL}
+algorithms_map = {"Rand": Trainer_Rand, "RandOD": Trainer_RandOD, "LLAL": Trainer_LLAL, "LLALOD": Trainer_LLALOD}
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(formatter_class=argparse.ArgumentDefaultsHelpFormatter)
     parser.add_argument("--config", help="Path to configuration file")
     parser.add_argument("--exp_idx", help="Index of experiment")
-    parser.add_argument("--gpu_idx", help="Index of GPU")
     bash_args = parser.parse_args()
     with open(bash_args.config, "r") as inp:
         args = argparse.Namespace(**json.load(inp))
-
-    os.environ["CUDA_VISIBLE_DEVICES"] = bash_args.gpu_idx
 
     # fix_random_seed(args.seed_value)
     logging.basicConfig(
@@ -45,5 +44,4 @@ if __name__ == "__main__":
 
     trainer = algorithms_map[args.algorithm](args, device, bash_args.exp_idx)
     trainer.train()
-    # trainer.save_plot()
     print("Finished!")

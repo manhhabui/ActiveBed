@@ -1,2 +1,3 @@
-taskset -c "2" python main.py --config "algorithms/Rand/configs/cifar10.json" --exp_idx "1" --gpu_idx "0"
+# CUDA_VISIBLE_DEVICES="0" python main.py --config "algorithms/LLALOD/configs/PascalVOC.json" --exp_idx "1" 
 # tensorboard --logdir "/home/ubuntu/source_code/ActiveBed/algorithms/LLAL/results/tensorboards/CIFAR_10_0"
+python main.py --config "algorithms/RandOD/configs/PascalVOC.json" --exp_idx "1"

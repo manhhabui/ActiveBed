@@ -1,0 +1,17 @@
+
+  
+{
+    "exp_name": "PascalVOC",
+    "algorithm": "LLALOD",
+    "model": "SSD300",
+    "dataset": "PascalVOC",
+    "seed_value": 1,
+    "data_path": "data/a-PyTorch-Tutorial-to-Object-Detection/",
+    "active_cycle": 10,
+    "number_start": 1000,
+    "number_query": 1000,
+    "epochs": 300,
+    "step_eval": 50,
+    "learning_rate": 1e-3,
+    "batch_size": 32
+}
