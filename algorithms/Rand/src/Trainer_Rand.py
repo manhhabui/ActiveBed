@@ -115,7 +115,7 @@ class Trainer_Rand:
                     loss.backward()
                     optim_backbone.step()
 
-                    total_classification_loss += torch.sum(target_loss).item()
+                    total_classification_loss += torch.sum(m_backbone_loss).item()
                     _, predicted_classes = torch.max(predicted_classes, 1)
                     n_class_corrected += (predicted_classes == labels).sum().item()
                     total_samples += len(samples)
@@ -160,7 +160,8 @@ class Trainer_Rand:
                 samples, labels = samples.to(self.device), labels.to(self.device)
                 predicted_classes, _ = self.model(samples)
                 classification_loss = self.criterion(predicted_classes, labels)
-                total_classification_loss += torch.sum(classification_loss).item()
+                m_backbone_loss = torch.sum(classification_loss) / classification_loss.size(0)
+                total_classification_loss += torch.sum(m_backbone_loss).item()
 
                 _, predicted_classes = torch.max(predicted_classes, 1)
                 n_class_corrected += (predicted_classes == labels).sum().item()

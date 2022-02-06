@@ -96,15 +96,10 @@ class MultiBoxLoss(nn.Module):
         positive_priors = true_classes != 0  # (N, 8732)
 
         # LOCALIZATION LOSS
-        print(predicted_locs.shape)
-        print(positive_priors.shape)
-        print(true_locs.shape)
-        print(predicted_locs[positive_priors].shape)
-        print(true_locs[positive_priors].shape)
-        exit()
-
+        loc_loss = torch.zeros((batch_size)).to(self.device)  # (N)
         # Localization loss is computed only over positive (non-background) priors
-        loc_loss = self.smooth_l1(predicted_locs[positive_priors], true_locs[positive_priors])  # (), scalar
+        for i in range(batch_size):
+            loc_loss[i] = self.smooth_l1(predicted_locs[i][positive_priors[i]], true_locs[i][positive_priors[i]])  # (), scalar
 
         # Note: indexing with a torch.uint8 (byte) tensor flattens the tensor when indexing is across multiple dimensions (N & 8732)
         # So, if predicted_locs has the shape (N, 8732, 4), predicted_locs[positive_priors] will have (total positives, 4)
@@ -124,8 +119,11 @@ class MultiBoxLoss(nn.Module):
         conf_loss_all = self.cross_entropy(predicted_scores.view(-1, n_classes), true_classes.view(-1))  # (N * 8732)
         conf_loss_all = conf_loss_all.view(batch_size, n_priors)  # (N, 8732)
 
-        # We already know which priors are positive
-        conf_loss_pos = conf_loss_all[positive_priors]  # (sum(n_positives))
+        # We already know which priors are positive        
+        conf_loss_pos = torch.zeros((batch_size)).to(self.device)  # (N)
+        for i in range(batch_size):
+            # print(conf_loss_all[i][positive_priors[i]].shape)
+            conf_loss_pos[i] = conf_loss_all[i][positive_priors[i]].sum()
 
         # Next, find which priors are hard-negative
         # To do this, sort ONLY negative priors in each image in order of decreasing loss and take top n_hard_negatives
@@ -135,15 +133,14 @@ class MultiBoxLoss(nn.Module):
         hardness_ranks = torch.LongTensor(range(n_priors)).unsqueeze(0).expand_as(conf_loss_neg).to(self.device)  # (N, 8732)
         hard_negatives = hardness_ranks < n_hard_negatives.unsqueeze(1)  # (N, 8732)
         
-        conf_loss_hard_neg = conf_loss_neg[hard_negatives]  # (sum(n_hard_negatives))
-        print(conf_loss_neg.shape)
-        print(hard_negatives.shape)
-        print(conf_loss_hard_neg.shape)
+        conf_loss_hard_neg = torch.zeros((batch_size)).to(self.device)  # (N)
+        for i in range(batch_size):
+            conf_loss_hard_neg[i] = conf_loss_neg[i][hard_negatives[i]].sum()
 
         # As in the paper, averaged over positive priors only, although computed over both positive and hard-negative priors
-        conf_loss = (conf_loss_hard_neg.sum() + conf_loss_pos.sum()) / n_positives.sum().float()  # (), scalar
-
-        # TOTAL LOSS
+        conf_loss = torch.zeros((batch_size)).to(self.device)  # (N)
+        for i in range(batch_size):
+            conf_loss[i] = (conf_loss_hard_neg[i] + conf_loss_pos[i]) / n_positives[i].float()
 
         return conf_loss + self.alpha * loc_loss
 
@@ -264,7 +261,7 @@ class Trainer_LLALOD:
                     predicted_locs, predicted_scores, features = self.model(samples)
                     target_loss = self.criterion(predicted_locs, predicted_scores, boxes, labels) 
 
-                    if epoch > 120:
+                    if epoch > 180:
                         features[0] = features[0].detach()
                         features[1] = features[1].detach()
                         features[2] = features[2].detach()
@@ -275,6 +272,7 @@ class Trainer_LLALOD:
                     pred_loss = self.loss_module(features)
                     pred_loss = pred_loss.view(pred_loss.size(0))
 
+                    m_backbone_loss = torch.sum(target_loss) / target_loss.size(0)
                     m_module_loss = LossPredLoss(pred_loss, target_loss, margin=1.0)
                     loss = m_backbone_loss + 1.0 * m_module_loss
                     
@@ -284,7 +282,7 @@ class Trainer_LLALOD:
                     optim_backbone.step()
                     optim_module.step()
 
-                    total_loss += torch.sum(target_loss).item()
+                    total_loss += torch.sum(m_backbone_loss).item()
                     total_samples += len(samples)
                 
                 if epoch % self.args.step_eval == 0:
@@ -305,7 +303,7 @@ class Trainer_LLALOD:
             random.shuffle(self.unlabeled_set)
             subset = self.unlabeled_set[:10000]
             self.unlabeled_loader = DataLoader(self.voc_unlabeled, batch_size=self.args.batch_size, 
-                                        sampler=SubsetSequentialSampler(subset), # more convenient if we maintain the order of subset
+                                        sampler=SubsetSequentialSampler(subset), collate_fn=self.voc_unlabeled.collate_fn, num_workers = 4,
                                         pin_memory=True)
             uncertainty = torch.tensor([]).cuda()
             with torch.no_grad():
@@ -324,9 +322,11 @@ class Trainer_LLALOD:
                                 sampler=SubsetRandomSampler(self.labeled_set), collate_fn=self.voc_train.collate_fn, num_workers = 4,
                                 pin_memory=True)
             del self.model
+            del self.loss_module
             
     def evaluate(self, epoch):
         self.model.eval()
+        self.loss_module.eval()
 
         total_loss = 0
         with torch.no_grad():
@@ -336,7 +336,8 @@ class Trainer_LLALOD:
                 labels = [l.to(self.device) for l in labels]
                 predicted_locs, predicted_scores, _ = self.model(samples)
                 target_loss = self.criterion(predicted_locs, predicted_scores, boxes, labels) 
-                total_loss += torch.sum(target_loss).item()
+                m_backbone_loss = torch.sum(target_loss) / target_loss.size(0)
+                total_loss += torch.sum(m_backbone_loss).item()
 
         self.writer.add_scalar("Loss/validate", total_loss / len(self.val_loader.dataset), epoch)
         logging.info(
@@ -352,7 +353,8 @@ class Trainer_LLALOD:
             self.val_loss_min = val_loss
             torch.save(
                 {
-                    "model_state_dict": self.model.state_dict()
+                    "model_state_dict": self.model.state_dict(),
+                    "loss_module": self.loss_module.state_dict()
                 },
                 self.checkpoint_name + ".pt",
             )
@@ -360,7 +362,9 @@ class Trainer_LLALOD:
     def test(self):
         checkpoint = torch.load(self.checkpoint_name + ".pt")
         self.model.load_state_dict(checkpoint["model_state_dict"])
+        self.loss_module.load_state_dict(checkpoint["loss_module"])
         self.model.eval()
+        self.loss_module.eval()
 
         det_boxes = list()
         det_labels = list()
@@ -375,7 +379,7 @@ class Trainer_LLALOD:
                 boxes = [b.to(self.device) for b in boxes]
                 labels = [l.to(self.device) for l in labels]
                 difficulties = [d.to(self.device) for d in difficulties]
-                predicted_locs, predicted_scores = self.model(samples)
+                predicted_locs, predicted_scores, _ = self.model(samples)
 
                 det_boxes_batch, det_labels_batch, det_scores_batch = self.model.detect_objects(predicted_locs, predicted_scores,
                                                                                        min_score=0.01, max_overlap=0.45,
@@ -391,7 +395,7 @@ class Trainer_LLALOD:
             APs, mAP = calculate_mAP(det_boxes, det_labels, det_scores, true_boxes, true_labels, true_difficulties)
         
         logging.info(
-            "Test set {}: Mean Average Precision (mAP): {:.3f})".format(
+            "Test set {}: Mean Average Precision (mAP): {:.3f}".format(
                 len(self.labeled_set),
                 mAP
             )

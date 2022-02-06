@@ -96,9 +96,10 @@ class MultiBoxLoss(nn.Module):
         positive_priors = true_classes != 0  # (N, 8732)
 
         # LOCALIZATION LOSS
-
+        loc_loss = torch.zeros((batch_size)).to(self.device)  # (N)
         # Localization loss is computed only over positive (non-background) priors
-        loc_loss = self.smooth_l1(predicted_locs[positive_priors], true_locs[positive_priors])  # (), scalar
+        for i in range(batch_size):
+            loc_loss[i] = self.smooth_l1(predicted_locs[i][positive_priors[i]], true_locs[i][positive_priors[i]])  # (), scalar
 
         # Note: indexing with a torch.uint8 (byte) tensor flattens the tensor when indexing is across multiple dimensions (N & 8732)
         # So, if predicted_locs has the shape (N, 8732, 4), predicted_locs[positive_priors] will have (total positives, 4)
@@ -106,7 +107,7 @@ class MultiBoxLoss(nn.Module):
         # CONFIDENCE LOSS
 
         # Confidence loss is computed over positive priors and the most difficult (hardest) negative priors in each image
-        # That is, FOR EACH IMAGE,
+        # That is, FOR EACH IMAGE,conf_loss_neg
         # we will take the hardest (neg_pos_ratio * n_positives) negative priors, i.e where there is maximum loss
         # This is called Hard Negative Mining - it concentrates on hardest negatives in each image, and also minimizes pos/neg imbalance
 
@@ -118,8 +119,11 @@ class MultiBoxLoss(nn.Module):
         conf_loss_all = self.cross_entropy(predicted_scores.view(-1, n_classes), true_classes.view(-1))  # (N * 8732)
         conf_loss_all = conf_loss_all.view(batch_size, n_priors)  # (N, 8732)
 
-        # We already know which priors are positive
-        conf_loss_pos = conf_loss_all[positive_priors]  # (sum(n_positives))
+        # We already know which priors are positive        
+        conf_loss_pos = torch.zeros((batch_size)).to(self.device)  # (N)
+        for i in range(batch_size):
+            # print(conf_loss_all[i][positive_priors[i]].shape)
+            conf_loss_pos[i] = conf_loss_all[i][positive_priors[i]].sum()
 
         # Next, find which priors are hard-negative
         # To do this, sort ONLY negative priors in each image in order of decreasing loss and take top n_hard_negatives
@@ -128,12 +132,15 @@ class MultiBoxLoss(nn.Module):
         conf_loss_neg, _ = conf_loss_neg.sort(dim=1, descending=True)  # (N, 8732), sorted by decreasing hardness
         hardness_ranks = torch.LongTensor(range(n_priors)).unsqueeze(0).expand_as(conf_loss_neg).to(self.device)  # (N, 8732)
         hard_negatives = hardness_ranks < n_hard_negatives.unsqueeze(1)  # (N, 8732)
-        conf_loss_hard_neg = conf_loss_neg[hard_negatives]  # (sum(n_hard_negatives))
+        
+        conf_loss_hard_neg = torch.zeros((batch_size)).to(self.device)  # (N)
+        for i in range(batch_size):
+            conf_loss_hard_neg[i] = conf_loss_neg[i][hard_negatives[i]].sum()
 
         # As in the paper, averaged over positive priors only, although computed over both positive and hard-negative priors
-        conf_loss = (conf_loss_hard_neg.sum() + conf_loss_pos.sum()) / n_positives.sum().float()  # (), scalar
-
-        # TOTAL LOSS
+        conf_loss = torch.zeros((batch_size)).to(self.device)  # (N)
+        for i in range(batch_size):
+            conf_loss[i] = (conf_loss_hard_neg[i] + conf_loss_pos[i]) / n_positives[i].float()
 
         return conf_loss + self.alpha * loc_loss
 
@@ -227,12 +234,12 @@ class Trainer_RandOD:
                     labels = [l.to(self.device) for l in labels]
                     predicted_locs, predicted_scores = self.model(samples)
                     target_loss = self.criterion(predicted_locs, predicted_scores, boxes, labels) 
-                    
+                    m_backbone_loss = torch.sum(target_loss) / target_loss.size(0)
                     optim_backbone.zero_grad()
-                    target_loss.backward()
+                    m_backbone_loss.backward()
                     optim_backbone.step()
 
-                    total_loss += torch.sum(target_loss).item()
+                    total_loss += torch.sum(m_backbone_loss).item()
                     total_samples += len(samples)
                 
                 if epoch % self.args.step_eval == 0:
@@ -271,7 +278,8 @@ class Trainer_RandOD:
                 labels = [l.to(self.device) for l in labels]
                 predicted_locs, predicted_scores = self.model(samples)
                 target_loss = self.criterion(predicted_locs, predicted_scores, boxes, labels) 
-                total_loss += torch.sum(target_loss).item()
+                m_backbone_loss = torch.sum(target_loss) / target_loss.size(0)
+                total_loss += torch.sum(m_backbone_loss).item()
 
         self.writer.add_scalar("Loss/validate", total_loss / len(self.val_loader.dataset), epoch)
         logging.info(
@@ -326,7 +334,7 @@ class Trainer_RandOD:
             APs, mAP = calculate_mAP(det_boxes, det_labels, det_scores, true_boxes, true_labels, true_difficulties)
         
         logging.info(
-            "Test set {}: Mean Average Precision (mAP): {:.3f})".format(
+            "Test set {}: Mean Average Precision (mAP): {:.3f}".format(
                 len(self.labeled_set),
                 mAP
             )
