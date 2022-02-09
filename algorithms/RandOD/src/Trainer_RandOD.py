@@ -239,7 +239,7 @@ class Trainer_RandOD:
                     m_backbone_loss.backward()
                     optim_backbone.step()
 
-                    total_loss += torch.sum(m_backbone_loss).item()
+                    total_loss += m_backbone_loss.item()
                     total_samples += len(samples)
                 
                 if epoch % self.args.step_eval == 0:
@@ -279,7 +279,7 @@ class Trainer_RandOD:
                 predicted_locs, predicted_scores = self.model(samples)
                 target_loss = self.criterion(predicted_locs, predicted_scores, boxes, labels) 
                 m_backbone_loss = torch.sum(target_loss) / target_loss.size(0)
-                total_loss += torch.sum(m_backbone_loss).item()
+                total_loss += m_backbone_loss.item()
 
         self.writer.add_scalar("Loss/validate", total_loss / len(self.val_loader.dataset), epoch)
         logging.info(

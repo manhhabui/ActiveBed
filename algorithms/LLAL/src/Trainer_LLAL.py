@@ -128,6 +128,7 @@ class Trainer_LLAL:
 
                 n_class_corrected = 0
                 total_classification_loss = 0
+                total_module_loss = 0
                 total_samples = 0
                 for (samples, labels) in tqdm(self.train_loader, leave = False, total = len(self.train_loader)):
                     samples, labels = samples.to(self.device), labels.to(self.device)
@@ -153,14 +154,16 @@ class Trainer_LLAL:
                     optim_backbone.step()
                     optim_module.step()
 
-                    total_classification_loss += torch.sum(m_backbone_loss).item()
+                    total_classification_loss += m_backbone_loss.item()
+                    total_module_loss += m_module_loss.item()
                     _, predicted_classes = torch.max(predicted_classes, 1)
                     n_class_corrected += (predicted_classes == labels).sum().item()
                     total_samples += len(samples)
 
                 if epoch % self.args.step_eval == 0:
                     self.writer.add_scalar("Accuracy/train", 100.0 * n_class_corrected / total_samples, epoch)
-                    self.writer.add_scalar("Loss/train", total_classification_loss / total_samples, epoch)
+                    self.writer.add_scalar("Loss classification/train", total_classification_loss / total_samples, epoch)
+                    self.writer.add_scalar("Loss module/train", total_module_loss / total_samples, epoch)
                     logging.info(
                         "Train set: Epoch: [{}/{}]\tAccuracy: {}/{} ({:.2f}%)\tLoss: {:.6f}".format(
                             epoch,
@@ -174,6 +177,7 @@ class Trainer_LLAL:
                     self.evaluate(epoch)
 
                 n_class_corrected = 0
+                total_module_loss = 0
                 total_classification_loss = 0
                 total_samples = 0
             
@@ -214,7 +218,7 @@ class Trainer_LLAL:
                 predicted_classes, _ = self.model(samples)
                 classification_loss = self.criterion(predicted_classes, labels)
                 m_backbone_loss = torch.sum(classification_loss) / classification_loss.size(0)
-                total_classification_loss += torch.sum(m_backbone_loss).item()
+                total_classification_loss += m_backbone_loss.item()
 
                 _, predicted_classes = torch.max(predicted_classes, 1)
                 n_class_corrected += (predicted_classes == labels).sum().item()

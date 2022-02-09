@@ -253,6 +253,7 @@ class Trainer_LLALOD:
                 self.loss_module.train()
 
                 total_loss = 0
+                total_module_loss = 0
                 total_samples = 0
                 for (samples, boxes, labels, _) in tqdm(self.train_loader, leave = False, total = len(self.train_loader)):
                     samples = samples.to(self.device)
@@ -282,11 +283,13 @@ class Trainer_LLALOD:
                     optim_backbone.step()
                     optim_module.step()
 
-                    total_loss += torch.sum(m_backbone_loss).item()
+                    total_loss += m_backbone_loss.item()
+                    total_module_loss += m_module_loss.item()
                     total_samples += len(samples)
                 
                 if epoch % self.args.step_eval == 0:
                     self.writer.add_scalar("Loss/train", total_loss / total_samples, epoch)
+                    self.writer.add_scalar("Loss module/train", total_module_loss / total_samples, epoch)
                     logging.info(
                         "Train set: Epoch: [{}/{}]\tLoss: {:.6f}".format(
                             epoch,
@@ -297,6 +300,7 @@ class Trainer_LLALOD:
                     self.evaluate(epoch)
 
                 total_loss = 0
+                total_module_loss = 0
                 total_samples = 0
 
             self.test()
@@ -337,7 +341,7 @@ class Trainer_LLALOD:
                 predicted_locs, predicted_scores, _ = self.model(samples)
                 target_loss = self.criterion(predicted_locs, predicted_scores, boxes, labels) 
                 m_backbone_loss = torch.sum(target_loss) / target_loss.size(0)
-                total_loss += torch.sum(m_backbone_loss).item()
+                total_loss += m_backbone_loss.item()
 
         self.writer.add_scalar("Loss/validate", total_loss / len(self.val_loader.dataset), epoch)
         logging.info(
