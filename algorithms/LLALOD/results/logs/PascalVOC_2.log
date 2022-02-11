@@ -1,0 +1,12 @@
+INFO:root:Train set: Epoch: [0/300]	Loss: 0.489378
+INFO:root:Val set: Loss: 0.416989
+INFO:root:Train set: Epoch: [50/300]	Loss: 0.152477
+INFO:root:Val set: Loss: 0.159557
+INFO:root:Train set: Epoch: [100/300]	Loss: 0.125334
+INFO:root:Val set: Loss: 0.138494
+INFO:root:Train set: Epoch: [150/300]	Loss: 0.105010
+INFO:root:Val set: Loss: 0.124698
+INFO:root:Train set: Epoch: [200/300]	Loss: 0.092399
+INFO:root:Val set: Loss: 0.121035
+INFO:root:Train set: Epoch: [250/300]	Loss: 0.080901
+INFO:root:Val set: Loss: 0.114658

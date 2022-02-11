@@ -99,3 +99,32 @@ INFO:root:Train set: Epoch: [150/300]	Loss: 0.071746
 INFO:root:Val set: Loss: 0.086230
 INFO:root:Train set: Epoch: [200/300]	Loss: 0.067202
 INFO:root:Val set: Loss: 0.086122
+INFO:root:Train set: Epoch: [250/300]	Loss: 0.058763
+INFO:root:Val set: Loss: 0.082611
+INFO:root:Test set 8000: Mean Average Precision (mAP): 0.713
+INFO:root:Train set: Epoch: [0/300]	Loss: 0.289956
+INFO:root:Val set: Loss: 0.206361
+INFO:root:Train set: Epoch: [50/300]	Loss: 0.091316
+INFO:root:Val set: Loss: 0.094444
+INFO:root:Train set: Epoch: [100/300]	Loss: 0.078491
+INFO:root:Val set: Loss: 0.086922
+INFO:root:Train set: Epoch: [150/300]	Loss: 0.071446
+INFO:root:Val set: Loss: 0.084722
+INFO:root:Train set: Epoch: [200/300]	Loss: 0.066933
+INFO:root:Val set: Loss: 0.084486
+INFO:root:Train set: Epoch: [250/300]	Loss: 0.058807
+INFO:root:Val set: Loss: 0.081399
+INFO:root:Test set 9000: Mean Average Precision (mAP): 0.714
+INFO:root:Train set: Epoch: [0/300]	Loss: 0.276943
+INFO:root:Val set: Loss: 0.194938
+INFO:root:Train set: Epoch: [50/300]	Loss: 0.088766
+INFO:root:Val set: Loss: 0.095305
+INFO:root:Train set: Epoch: [100/300]	Loss: 0.077767
+INFO:root:Val set: Loss: 0.085834
+INFO:root:Train set: Epoch: [150/300]	Loss: 0.070734
+INFO:root:Val set: Loss: 0.084473
+INFO:root:Train set: Epoch: [200/300]	Loss: 0.066410
+INFO:root:Val set: Loss: 0.083377
+INFO:root:Train set: Epoch: [250/300]	Loss: 0.058014
+INFO:root:Val set: Loss: 0.079995
+INFO:root:Test set 10000: Mean Average Precision (mAP): 0.725
